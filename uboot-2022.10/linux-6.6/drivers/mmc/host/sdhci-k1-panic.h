@@ -1,0 +1,420 @@
+// SPDX-License-Identifier: GPL-2.0
+/*
+ * Driver for Spacemit Mobile Storage Host Controller
+ *
+ * Copyright (C) 2023 Spacemit
+ */
+
+#ifndef __K1_MMC_PANIC_H__
+#define __K1_MMC_PANIC_H__
+
+/*
+ * Controller registers
+ */
+
+#define SDHCI_DMA_ADDRESS	0x00
+#define SDHCI_ARGUMENT2		SDHCI_DMA_ADDRESS
+#define SDHCI_32BIT_BLK_CNT	SDHCI_DMA_ADDRESS
+
+#define SDHCI_BLOCK_SIZE	0x04
+#define  SDHCI_MAKE_BLKSZ(dma, blksz) (((dma & 0x7) << 12) | (blksz & 0xFFF))
+
+#define SDHCI_BLOCK_COUNT	0x06
+
+#define SDHCI_ARGUMENT		0x08
+
+#define SDHCI_TRANSFER_MODE	0x0C
+#define  SDHCI_TRNS_DMA		0x01
+#define  SDHCI_TRNS_BLK_CNT_EN	0x02
+#define  SDHCI_TRNS_AUTO_CMD12	0x04
+#define  SDHCI_TRNS_AUTO_CMD23	0x08
+#define  SDHCI_TRNS_AUTO_SEL	0x0C
+#define  SDHCI_TRNS_READ	0x10
+#define  SDHCI_TRNS_MULTI	0x20
+
+#define SDHCI_COMMAND		0x0E
+#define  SDHCI_CMD_RESP_MASK	0x03
+#define  SDHCI_CMD_CRC		0x08
+#define  SDHCI_CMD_INDEX	0x10
+#define  SDHCI_CMD_DATA		0x20
+#define  SDHCI_CMD_ABORTCMD	0xC0
+
+#define  SDHCI_CMD_RESP_NONE	0x00
+#define  SDHCI_CMD_RESP_LONG	0x01
+#define  SDHCI_CMD_RESP_SHORT	0x02
+#define  SDHCI_CMD_RESP_SHORT_BUSY 0x03
+
+#define SDHCI_MAKE_CMD(c, f) (((c & 0xff) << 8) | (f & 0xff))
+#define SDHCI_GET_CMD(c) ((c>>8) & 0x3f)
+
+#define SDHCI_RESPONSE		0x10
+
+#define SDHCI_BUFFER		0x20
+
+#define SDHCI_PRESENT_STATE	0x24
+#define  SDHCI_CMD_INHIBIT	0x00000001
+#define  SDHCI_DATA_INHIBIT	0x00000002
+#define  SDHCI_DOING_WRITE	0x00000100
+#define  SDHCI_DOING_READ	0x00000200
+#define  SDHCI_SPACE_AVAILABLE	0x00000400
+#define  SDHCI_DATA_AVAILABLE	0x00000800
+#define  SDHCI_CARD_PRESENT	0x00010000
+#define   SDHCI_CARD_PRES_SHIFT	16
+#define  SDHCI_CD_STABLE	0x00020000
+#define  SDHCI_CD_LVL		0x00040000
+#define   SDHCI_CD_LVL_SHIFT	18
+#define  SDHCI_WRITE_PROTECT	0x00080000
+#define  SDHCI_DATA_LVL_MASK	0x00F00000
+#define   SDHCI_DATA_LVL_SHIFT	20
+#define   SDHCI_DATA_0_LVL_MASK	0x00100000
+#define  SDHCI_CMD_LVL		0x01000000
+
+#define SDHCI_HOST_CONTROL	0x28
+#define  SDHCI_CTRL_LED		0x01
+#define  SDHCI_CTRL_4BITBUS	0x02
+#define  SDHCI_CTRL_HISPD	0x04
+#define  SDHCI_CTRL_DMA_MASK	0x18
+#define   SDHCI_CTRL_SDMA	0x00
+#define   SDHCI_CTRL_ADMA1	0x08
+#define   SDHCI_CTRL_ADMA32	0x10
+#define   SDHCI_CTRL_ADMA64	0x18
+#define   SDHCI_CTRL_ADMA3	0x18
+#define  SDHCI_CTRL_8BITBUS	0x20
+#define  SDHCI_CTRL_CDTEST_INS	0x40
+#define  SDHCI_CTRL_CDTEST_EN	0x80
+
+#define SDHCI_POWER_CONTROL	0x29
+#define  SDHCI_POWER_ON		0x01
+#define  SDHCI_POWER_180	0x0A
+#define  SDHCI_POWER_300	0x0C
+#define  SDHCI_POWER_330	0x0E
+/*
+ * VDD2 - UHS2 or PCIe/NVMe
+ * VDD2 power on/off and voltage select
+ */
+#define  SDHCI_VDD2_POWER_ON	0x10
+#define  SDHCI_VDD2_POWER_120	0x80
+#define  SDHCI_VDD2_POWER_180	0xA0
+
+#define SDHCI_BLOCK_GAP_CONTROL	0x2A
+
+#define SDHCI_WAKE_UP_CONTROL	0x2B
+#define  SDHCI_WAKE_ON_INT	0x01
+#define  SDHCI_WAKE_ON_INSERT	0x02
+#define  SDHCI_WAKE_ON_REMOVE	0x04
+
+#define SDHCI_CLOCK_CONTROL	0x2C
+#define  SDHCI_DIVIDER_SHIFT	8
+#define  SDHCI_DIVIDER_HI_SHIFT	6
+#define  SDHCI_DIV_MASK	0xFF
+#define  SDHCI_DIV_MASK_LEN	8
+#define  SDHCI_DIV_HI_MASK	0x300
+#define  SDHCI_PROG_CLOCK_MODE	0x0020
+#define  SDHCI_CLOCK_CARD_EN	0x0004
+#define  SDHCI_CLOCK_PLL_EN	0x0008
+#define  SDHCI_CLOCK_INT_STABLE	0x0002
+#define  SDHCI_CLOCK_INT_EN	0x0001
+
+#define SDHCI_TIMEOUT_CONTROL	0x2E
+
+#define SDHCI_SOFTWARE_RESET	0x2F
+#define  SDHCI_RESET_ALL	0x01
+#define  SDHCI_RESET_CMD	0x02
+#define  SDHCI_RESET_DATA	0x04
+
+#define SDHCI_INT_STATUS	0x30
+#define SDHCI_INT_ENABLE	0x34
+#define SDHCI_SIGNAL_ENABLE	0x38
+#define  SDHCI_INT_RESPONSE	0x00000001
+#define  SDHCI_INT_DATA_END	0x00000002
+#define  SDHCI_INT_BLK_GAP	0x00000004
+#define  SDHCI_INT_DMA_END	0x00000008
+#define  SDHCI_INT_SPACE_AVAIL	0x00000010
+#define  SDHCI_INT_DATA_AVAIL	0x00000020
+#define  SDHCI_INT_CARD_INSERT	0x00000040
+#define  SDHCI_INT_CARD_REMOVE	0x00000080
+#define  SDHCI_INT_CARD_INT	0x00000100
+#define  SDHCI_INT_RETUNE	0x00001000
+#define  SDHCI_INT_CQE		0x00004000
+#define  SDHCI_INT_ERROR	0x00008000
+#define  SDHCI_INT_TIMEOUT	0x00010000
+#define  SDHCI_INT_CRC		0x00020000
+#define  SDHCI_INT_END_BIT	0x00040000
+#define  SDHCI_INT_INDEX	0x00080000
+#define  SDHCI_INT_DATA_TIMEOUT	0x00100000
+#define  SDHCI_INT_DATA_CRC	0x00200000
+#define  SDHCI_INT_DATA_END_BIT	0x00400000
+#define  SDHCI_INT_BUS_POWER	0x00800000
+#define  SDHCI_INT_AUTO_CMD_ERR	0x01000000
+#define  SDHCI_INT_ADMA_ERROR	0x02000000
+#define  SDHCI_INT_TUNING_ERROR	0x04000000
+
+#define  SDHCI_INT_NORMAL_MASK	0x00007FFF
+#define  SDHCI_INT_ERROR_MASK	0xFFFF8000
+
+#define  SDHCI_INT_CMD_MASK	(SDHCI_INT_RESPONSE | SDHCI_INT_TIMEOUT | \
+		SDHCI_INT_CRC | SDHCI_INT_END_BIT | SDHCI_INT_INDEX | \
+		SDHCI_INT_AUTO_CMD_ERR)
+#define  SDHCI_INT_DATA_MASK	(SDHCI_INT_DATA_END | SDHCI_INT_DMA_END | \
+		SDHCI_INT_DATA_AVAIL | SDHCI_INT_SPACE_AVAIL | \
+		SDHCI_INT_DATA_TIMEOUT | SDHCI_INT_DATA_CRC | \
+		SDHCI_INT_DATA_END_BIT | SDHCI_INT_ADMA_ERROR | \
+		SDHCI_INT_BLK_GAP | SDHCI_INT_TUNING_ERROR)
+#define SDHCI_INT_ALL_MASK	((unsigned int)-1)
+
+#define SDHCI_CQE_INT_ERR_MASK ( \
+	SDHCI_INT_ADMA_ERROR | SDHCI_INT_BUS_POWER | SDHCI_INT_DATA_END_BIT | \
+	SDHCI_INT_DATA_CRC | SDHCI_INT_DATA_TIMEOUT | SDHCI_INT_INDEX | \
+	SDHCI_INT_END_BIT | SDHCI_INT_CRC | SDHCI_INT_TIMEOUT)
+
+#define SDHCI_CQE_INT_MASK (SDHCI_CQE_INT_ERR_MASK | SDHCI_INT_CQE)
+
+#define SDHCI_AUTO_CMD_STATUS	0x3C
+#define  SDHCI_AUTO_CMD_TIMEOUT	0x00000002
+#define  SDHCI_AUTO_CMD_CRC	0x00000004
+#define  SDHCI_AUTO_CMD_END_BIT	0x00000008
+#define  SDHCI_AUTO_CMD_INDEX	0x00000010
+
+#define SDHCI_HOST_CONTROL2		0x3E
+#define  SDHCI_CTRL_UHS_MASK		0x0007
+#define   SDHCI_CTRL_UHS_SDR12		0x0000
+#define   SDHCI_CTRL_UHS_SDR25		0x0001
+#define   SDHCI_CTRL_UHS_SDR50		0x0002
+#define   SDHCI_CTRL_UHS_SDR104		0x0003
+#define   SDHCI_CTRL_UHS_DDR50		0x0004
+#define   SDHCI_CTRL_HS400		0x0005 /* Non-standard */
+#define  SDHCI_CTRL_VDD_180		0x0008
+#define  SDHCI_CTRL_DRV_TYPE_MASK	0x0030
+#define   SDHCI_CTRL_DRV_TYPE_B		0x0000
+#define   SDHCI_CTRL_DRV_TYPE_A		0x0010
+#define   SDHCI_CTRL_DRV_TYPE_C		0x0020
+#define   SDHCI_CTRL_DRV_TYPE_D		0x0030
+#define  SDHCI_CTRL_EXEC_TUNING		0x0040
+#define  SDHCI_CTRL_TUNED_CLK		0x0080
+#define  SDHCI_CMD23_ENABLE		0x0800
+#define  SDHCI_CTRL_V4_MODE		0x1000
+#define  SDHCI_CTRL_64BIT_ADDR		0x2000
+#define  SDHCI_CTRL_PRESET_VAL_ENABLE	0x8000
+
+#define SDHCI_CAPABILITIES	0x40
+#define  SDHCI_TIMEOUT_CLK_MASK		GENMASK(5, 0)
+#define  SDHCI_TIMEOUT_CLK_SHIFT 0
+#define  SDHCI_TIMEOUT_CLK_UNIT	0x00000080
+#define  SDHCI_CLOCK_BASE_MASK		GENMASK(13, 8)
+#define  SDHCI_CLOCK_BASE_SHIFT	8
+#define  SDHCI_CLOCK_V3_BASE_MASK	GENMASK(15, 8)
+#define  SDHCI_MAX_BLOCK_MASK	0x00030000
+#define  SDHCI_MAX_BLOCK_SHIFT  16
+#define  SDHCI_CAN_DO_8BIT	0x00040000
+#define  SDHCI_CAN_DO_ADMA2	0x00080000
+#define  SDHCI_CAN_DO_ADMA1	0x00100000
+#define  SDHCI_CAN_DO_HISPD	0x00200000
+#define  SDHCI_CAN_DO_SDMA	0x00400000
+#define  SDHCI_CAN_DO_SUSPEND	0x00800000
+#define  SDHCI_CAN_VDD_330	0x01000000
+#define  SDHCI_CAN_VDD_300	0x02000000
+#define  SDHCI_CAN_VDD_180	0x04000000
+#define  SDHCI_CAN_64BIT_V4	0x08000000
+#define  SDHCI_CAN_64BIT	0x10000000
+
+#define SDHCI_CAPABILITIES_1	0x44
+#define  SDHCI_SUPPORT_SDR50	0x00000001
+#define  SDHCI_SUPPORT_SDR104	0x00000002
+#define  SDHCI_SUPPORT_DDR50	0x00000004
+#define  SDHCI_DRIVER_TYPE_A	0x00000010
+#define  SDHCI_DRIVER_TYPE_C	0x00000020
+#define  SDHCI_DRIVER_TYPE_D	0x00000040
+#define  SDHCI_RETUNING_TIMER_COUNT_MASK	GENMASK(11, 8)
+#define  SDHCI_USE_SDR50_TUNING			0x00002000
+#define  SDHCI_RETUNING_MODE_MASK		GENMASK(15, 14)
+#define  SDHCI_CLOCK_MUL_MASK			GENMASK(23, 16)
+#define  SDHCI_CAN_DO_ADMA3	0x08000000
+#define  SDHCI_SUPPORT_HS400	0x80000000 /* Non-standard */
+
+#define SDHCI_MAX_CURRENT		0x48
+#define  SDHCI_MAX_CURRENT_LIMIT	GENMASK(7, 0)
+#define  SDHCI_MAX_CURRENT_330_MASK	GENMASK(7, 0)
+#define  SDHCI_MAX_CURRENT_300_MASK	GENMASK(15, 8)
+#define  SDHCI_MAX_CURRENT_180_MASK	GENMASK(23, 16)
+#define   SDHCI_MAX_CURRENT_MULTIPLIER	4
+
+/* 4C-4F reserved for more max current */
+
+#define SDHCI_SET_ACMD12_ERROR	0x50
+#define SDHCI_SET_INT_ERROR	0x52
+
+#define SDHCI_ADMA_ERROR	0x54
+
+/* 55-57 reserved */
+
+#define SDHCI_ADMA_ADDRESS	0x58
+#define SDHCI_ADMA_ADDRESS_HI	0x5C
+
+/* 60-FB reserved */
+
+#define SDHCI_PRESET_FOR_HIGH_SPEED	0x64
+#define SDHCI_PRESET_FOR_SDR12 0x66
+#define SDHCI_PRESET_FOR_SDR25 0x68
+#define SDHCI_PRESET_FOR_SDR50 0x6A
+#define SDHCI_PRESET_FOR_SDR104        0x6C
+#define SDHCI_PRESET_FOR_DDR50 0x6E
+#define SDHCI_PRESET_FOR_HS400 0x74 /* Non-standard */
+#define SDHCI_PRESET_DRV_MASK		GENMASK(15, 14)
+#define SDHCI_PRESET_CLKGEN_SEL		BIT(10)
+#define SDHCI_PRESET_SDCLK_FREQ_MASK	GENMASK(9, 0)
+
+#define SDHCI_SLOT_INT_STATUS	0xFC
+
+#define SDHCI_HOST_VERSION	0xFE
+#define  SDHCI_VENDOR_VER_MASK	0xFF00
+#define  SDHCI_VENDOR_VER_SHIFT	8
+#define  SDHCI_SPEC_VER_MASK	0x00FF
+#define  SDHCI_SPEC_VER_SHIFT	0
+#define   SDHCI_SPEC_100	0
+#define   SDHCI_SPEC_200	1
+#define   SDHCI_SPEC_300	2
+#define   SDHCI_SPEC_400	3
+#define   SDHCI_SPEC_410	4
+#define   SDHCI_SPEC_420	5
+
+/*
+ * Host SDMA buffer boundary. Valid values from 4K to 512K in powers of 2.
+ */
+#define SDHCI_DEFAULT_BOUNDARY_SIZE	(512 * 1024)
+#define SDHCI_DEFAULT_BOUNDARY_ARG	(7)
+
+/*
+ * End of controller registers.
+ */
+
+#define MMC_DATA_READ		1
+#define MMC_DATA_WRITE		2
+
+#define MMC_CMD_GO_IDLE_STATE		0
+#define MMC_CMD_SEND_OP_COND		1
+#define MMC_CMD_ALL_SEND_CID		2
+#define MMC_CMD_SET_RELATIVE_ADDR	3
+#define MMC_CMD_SET_DSR			4
+#define MMC_CMD_SWITCH			6
+#define MMC_CMD_SELECT_CARD		7
+#define MMC_CMD_SEND_EXT_CSD		8
+#define MMC_CMD_SEND_CSD		9
+#define MMC_CMD_SEND_CID		10
+#define MMC_CMD_STOP_TRANSMISSION	12
+#define MMC_CMD_SEND_STATUS		13
+#define MMC_CMD_SET_BLOCKLEN		16
+#define MMC_CMD_READ_SINGLE_BLOCK	17
+#define MMC_CMD_READ_MULTIPLE_BLOCK	18
+#define MMC_CMD_SEND_TUNING_BLOCK		19
+#define MMC_CMD_SEND_TUNING_BLOCK_HS200	21
+#define MMC_CMD_SET_BLOCK_COUNT         23
+#define MMC_CMD_WRITE_SINGLE_BLOCK	24
+#define MMC_CMD_WRITE_MULTIPLE_BLOCK	25
+#define MMC_CMD_ERASE_GROUP_START	35
+#define MMC_CMD_ERASE_GROUP_END		36
+#define MMC_CMD_ERASE			38
+#define MMC_CMD_APP_CMD			55
+#define MMC_CMD_SPI_READ_OCR		58
+#define MMC_CMD_SPI_CRC_ON_OFF		59
+#define MMC_CMD_RES_MAN			62
+
+#define MMC_CMD62_ARG1			0xefac62ec
+#define MMC_CMD62_ARG2			0xcbaea7
+
+
+#define SD_CMD_SEND_RELATIVE_ADDR	3
+#define SD_CMD_SWITCH_FUNC		6
+#define SD_CMD_SEND_IF_COND		8
+#define SD_CMD_SWITCH_UHS18V		11
+
+#define SD_CMD_APP_SET_BUS_WIDTH	6
+#define SD_CMD_APP_SD_STATUS		13
+#define SD_CMD_ERASE_WR_BLK_START	32
+#define SD_CMD_ERASE_WR_BLK_END		33
+#define SD_CMD_APP_SEND_OP_COND		41
+#define SD_CMD_APP_SEND_SCR		51
+
+#define MMC_RSP_PRESENT (1 << 0)
+#define MMC_RSP_136	(1 << 1)		/* 136 bit response */
+#define MMC_RSP_CRC	(1 << 2)		/* expect valid crc */
+#define MMC_RSP_BUSY	(1 << 3)		/* card may send busy */
+#define MMC_RSP_OPCODE	(1 << 4)		/* response contains opcode */
+
+#define MMC_RSP_NONE	(0)
+#define MMC_RSP_R1	(MMC_RSP_PRESENT|MMC_RSP_CRC|MMC_RSP_OPCODE)
+#define MMC_RSP_R1b	(MMC_RSP_PRESENT|MMC_RSP_CRC|MMC_RSP_OPCODE| \
+			MMC_RSP_BUSY)
+#define MMC_RSP_R2	(MMC_RSP_PRESENT|MMC_RSP_136|MMC_RSP_CRC)
+#define MMC_RSP_R3	(MMC_RSP_PRESENT)
+#define MMC_RSP_R4	(MMC_RSP_PRESENT)
+#define MMC_RSP_R5	(MMC_RSP_PRESENT|MMC_RSP_CRC|MMC_RSP_OPCODE)
+#define MMC_RSP_R6	(MMC_RSP_PRESENT|MMC_RSP_CRC|MMC_RSP_OPCODE)
+#define MMC_RSP_R7	(MMC_RSP_PRESENT|MMC_RSP_CRC|MMC_RSP_OPCODE)
+
+
+#define MMC_STATUS_MASK		(~0x0206BF7F)
+#define MMC_STATUS_SWITCH_ERROR	(1 << 7)
+#define MMC_STATUS_RDY_FOR_DATA (1 << 8)
+#define MMC_STATUS_CURR_STATE	(0xf << 9)
+#define MMC_STATUS_ERROR	(1 << 19)
+
+#define MMC_STATE_PRG		(7 << 9)
+#define MMC_STATE_TRANS		(4 << 9)
+
+#define MMC_BLOCK_SIZE				512
+#define MMC_MAX_BLK_COUNT			65535
+
+struct mmc_cmd {
+	unsigned short cmdidx;
+	unsigned int resp_type;
+	unsigned int cmdarg;
+	unsigned int response[4];
+};
+
+struct mmc_data {
+	union {
+		char *dest;
+		const char *src; /* src buffers don't get written to */
+	};
+	unsigned int flags;
+	unsigned int blocks;
+	unsigned int blocksize;
+};
+
+static inline void sdhci_writel(char *host, unsigned int val, int reg)
+{
+	writel(val, host + reg);
+}
+
+static inline void sdhci_writew(char *host, unsigned short val, int reg)
+{
+	writew(val, host + reg);
+}
+
+static inline void sdhci_writeb(char *host, unsigned char val, int reg)
+{
+	writeb(val, host + reg);
+}
+
+static inline unsigned int sdhci_readl(char *host, int reg)
+{
+	return readl(host + reg);
+}
+
+static inline unsigned short sdhci_readw(char *host, int reg)
+{
+	return readw(host + reg);
+}
+
+static inline unsigned char sdhci_readb(char *host, int reg)
+{
+	return readb(host + reg);
+}
+
+ssize_t
+k1_mmc_panic_rtest(struct device *dev, struct device_attribute *attr, char *buf);
+ssize_t
+k1_mmc_pancic_wrtest(struct device *dev, struct device_attribute *attr,
+		const char *buf, size_t count);
+int k1_mmc_panic_init_ps(void *data);
+#endif
